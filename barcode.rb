@@ -93,8 +93,29 @@ class Code39
     puts decoded_string
   end
 
-  def draw(width, height, barcode_string)
-    image = ChunkyPNG::Image.new(width, height, ChunkyPNG::Color::WHITE)
+  def draw(width, height, barcode_string, offset=2, border=5)
+    encoded_string = encode(barcode_string)
+    size = (border * 2) + (offset * encoded_string.size)
+
+    puts size
+
+    image = ChunkyPNG::Image.new(size, height, ChunkyPNG::Color::WHITE)
+    x = border
+
+    encoded_string.scan(/.{12}/).each do |character|
+      character.chars.each do |digit|
+        if digit == '1'
+          (0..height-1).each do |y|
+            (0...offset).each do |d|
+              image[x + d, y] = ChunkyPNG::Color.rgb(0, 0, 0)
+            end
+          end
+        end
+        x += offset
+      end
+      x += offset
+    end
+    image.save('barcode.png')
   end
 
   def testdraw
@@ -117,34 +138,5 @@ class Code39
       x += 2
     end
     image.save('testimage.png')
-
-=begin
-    (0..width-1).each do |x|
-      if testcode.chars[x] == '1'
-        (0..height-1).each do |y|
-          image[(x*2), y] = ChunkyPNG::Color.rgb(0, 0, 0)
-          image[(x*2) + 1, y] = ChunkyPNG::Color.rgb(0, 0, 0)
-        end
-      end
-    end
-    image.save('testimage.png')
-
-    (0..width-1).each do |x|
-      if x % 4 < 2
-        (0..height-1).each do |y|
-          image[x, y] = ChunkyPNG::Color.rgb(0, 0, 0)
-        end
-      end
-    end
-    image.save('testimage.png')
-
-    image = ChunkyPNG::Image.new(20, 20, ChunkyPNG::Color::WHITE)
-    image[1, 3] = ChunkyPNG::Color.rgb(0, 0, 0)
-    image[2, 3] = ChunkyPNG::Color.rgb(0, 0, 255)
-    image[10, 1] = ChunkyPNG::Color.rgb(255, 0, 0)
-    image[10, 2] = ChunkyPNG::Color.rgb(255, 0, 0)
-    image[10, 3] = ChunkyPNG::Color.rgb(255, 0, 0)
-    image.save('testimage.png', :interlace => true)
-=end
   end
 end
