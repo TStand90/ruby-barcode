@@ -113,7 +113,7 @@ class Code128
     102 => '11110101110', 103 => '11010000100', 104 => '11010010000',
     105 => '11010011100', 106 => '1100011101011'
   }
-
+  
   MAP_B = {
     ' ' => 0, '!' => 1, '"' => 2, '#' => 3, '$' => 4, '%' => 5, '&' => 6,
     "'" => 7, '(' => 8, ')' => 9, '*' => 10, '+' => 11, ',' => 12, '-' => 13,
@@ -134,13 +134,17 @@ class Code128
   }
 
   def encode(barcode_string)
-    puts barcode_string
+    x = 1
+    checksum = 104
     encoded_string = CODE128[104]     # Start code
     barcode_string.each_char do |s|
       encoded_string += CODE128[MAP_B[s]]
+      checksum += (MAP_B[s] * x)
+      x += 1
     end
+    puts checksum % 103
+    encoded_string += CODE128[checksum % 103]
     encoded_string += CODE128[106]    # End code
-    puts encoded_string
     encoded_string
   end
 
@@ -152,31 +156,14 @@ class Code128
     decoded_string
   end
 
-  def draw(width, height, barcode_string, ratio=2, border=20)
+  def draw(height, barcode_string, border=20)
     encoded_string = encode(barcode_string)
 
-    if ratio == 2
-      size = (border * 2) + encoded_string.size
-    end
+    width = (border * 2) + encoded_string.size
 
-    puts size
-
-    image = ChunkyPNG::Image.new(size, height, ChunkyPNG::Color::WHITE)
+    image = ChunkyPNG::Image.new(width, height, ChunkyPNG::Color::WHITE)
     x = border
-=begin
-    encoded_string.each_char do |character|
-      character.each_char do |bit|
-        if bit == '1'
-          (0..height-1).each do |y|
-            image[x, y] = ChunkyPNG::Color::BLACK
-          end
-        end
-        x += 1
-      end
-    end
-    image.save('barcode128.png')
-  end
-=end
+
     encoded_string.each_char do |character|
       if character == '1'
         (0..height-1).each do |y|
@@ -184,6 +171,27 @@ class Code128
         end
       end
       x += 1
+    end
+    image.save('barcode128.png')
+  end
+
+  def draw_ratio(height, barcode_string, ratio=3, border=20)
+    encoded_string = encode(barcode_string)
+
+    width = (border * 2) + (encoded_string.size * ratio)
+
+    image = ChunkyPNG::Image.new(width, height, ChunkyPNG::Color::WHITE)
+    x = border
+
+    encoded_string.each_char do |character|
+      if character == '1'
+        (0..height-1).each do |y|
+          (0...ratio).each do |r|
+            image[x + r, y] = ChunkyPNG::Color::BLACK
+          end
+        end
+      end
+      x += ratio
     end
     image.save('barcode128.png')
   end
