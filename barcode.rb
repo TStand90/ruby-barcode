@@ -133,6 +133,14 @@ class Code128
     '|' => 92, '}' => 93, '~' => 94
   }
 
+  def initialize(data_string, height=150, ratio=2, border=10)
+    @data = encode(data_string)
+    @height = height
+    @ratio = ratio
+    @border = border
+    @image = draw
+  end
+
   def encode(barcode_string)
     x = 1
     checksum = 104
@@ -155,8 +163,8 @@ class Code128
     end
     decoded_string
   end
-
-  def draw(height, barcode_string, border=20)
+=begin
+  def draw(height, barcode_string, border=10)
     encoded_string = encode(barcode_string)
 
     width = (border * 2) + encoded_string.size
@@ -173,6 +181,30 @@ class Code128
       x += 1
     end
     image.save('barcode128.png')
+  end
+=end
+
+  def draw
+    width = (@border * 2) + (@data.size * @ratio)
+
+    image = ChunkyPNG::Image.new(width, @height, ChunkyPNG::Color::WHITE)
+    x = @border
+
+    @data.each_char do |character|
+      if character == '1'
+        (0..@height-1).each do |y|
+          (0...@ratio).each do |r|
+            image[x + r, y] = ChunkyPNG::Color::BLACK
+          end
+        end
+      end
+      x += @ratio
+    end
+    return image
+  end
+
+  def save(file_name)
+    @image.save(file_name)
   end
 
   def draw_ratio(height, barcode_string, ratio=3, border=20)
@@ -195,4 +227,22 @@ class Code128
     end
     image.save('barcode128.png')
   end
+end
+
+class Ean13
+  LEFT_ODD = {
+    0 => '0001101', 1 => '0011001', 2 => '0010011', 3 => '0111101',
+    4 => '0100011', 5 => '0110001', 6 => '0101111', 7 => '0111011',
+    8 => '0110111', 9 => '0001011'
+  }
+  LEFT_EVEN = {
+    0 => '0100111', 1 => '0110011', 2 => '0110011', 3 => '0100001',
+    4 => '0011101', 5 => '0111001', 6 => '0000101', 7 => '0010001',
+    8 => '0001001', 9 => '0010111'
+  }
+  RIGHT = {
+    0 => '1110010', 1 => '1100110', 2 => '1101100', 3 => '1000010',
+    4 => '1011100', 5 => '1001110', 6 => '1010000', 7 => '1000100',
+    8 => '1001000', 9 => '1110100'
+  }
 end
