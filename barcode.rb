@@ -2,10 +2,10 @@ require 'chunky_png'
 
 class Code39
   CODE39 = {
-    0 => '101001101101', 1 => '110100101011', 2 => '101100101011',
-    3 => '110110010101', 4 => '101001101011', 5 => '110100110101',
-    6 => '101100110101', 7 => '101001011011', 8 => '110100101101',
-    9 => '101100101101', 'A' => '110101001011', 'B' => '101101001011',
+    '0' => '101001101101', '1' => '110100101011', '2' => '101100101011',
+    '3' => '110110010101', '4' => '101001101011', '5' => '110100110101',
+    '6' => '101100110101', '7' => '101001011011', '8' => '110100101101',
+    '9' => '101100101101', 'A' => '110101001011', 'B' => '101101001011',
     'C' => '110110100101', 'D' => '101011001011', 'E' => '110101100101',
     'F' => '101101100101', 'G' => '101010011011', 'H' => '110101001101',
     'I' => '101101001101', 'J' => '101011001101', 'K' => '110101010011',
@@ -179,22 +179,111 @@ class Code128
     end
     return image
   end
+
+  def save(file_name)
+    @image.save(file_name)
+  end
 end
 
 class Ean13
   LEFT_ODD = {
-    0 => '0001101', 1 => '0011001', 2 => '0010011', 3 => '0111101',
-    4 => '0100011', 5 => '0110001', 6 => '0101111', 7 => '0111011',
-    8 => '0110111', 9 => '0001011'
+    '0' => '0001101', '1' => '0011001', '2' => '0010011', '3' => '0111101',
+    '4' => '0100011', '5' => '0110001', '6' => '0101111', '7' => '0111011',
+    '8' => '0110111', '9' => '0001011'
   }
   LEFT_EVEN = {
-    0 => '0100111', 1 => '0110011', 2 => '0110011', 3 => '0100001',
-    4 => '0011101', 5 => '0111001', 6 => '0000101', 7 => '0010001',
-    8 => '0001001', 9 => '0010111'
+    '0' => '0100111', '1' => '0110011', '2' => '0011011', '3' => '0100001',
+    '4' => '0011101', '5' => '0111001', '6' => '0000101', '7' => '0010001',
+    '8' => '0001001', '9' => '0010111'
   }
   RIGHT = {
-    0 => '1110010', 1 => '1100110', 2 => '1101100', 3 => '1000010',
-    4 => '1011100', 5 => '1001110', 6 => '1010000', 7 => '1000100',
-    8 => '1001000', 9 => '1110100'
+    '0' => '1110010', '1' => '1100110', '2' => '1101100', '3' => '1000010',
+    '4' => '1011100', '5' => '1001110', '6' => '1010000', '7' => '1000100',
+    '8' => '1001000', '9' => '1110100'
   }
+  FIRST = {
+    '0' => 'LLLLLL', '1' => 'LLGLGG', '2' => 'LLGGLG', '3' => 'LLGGGL',
+    '4' => 'LGLLGG', '5' => 'LGGLLG', '6' => 'LGGGLL', '7' => 'LGLGLG',
+    '8' => 'LGLGGL', '9' => 'LGLGGL'
+  }
+
+  def initialize(data_string, height=150, ratio=2, border=10)
+    @data = encode(data_string)
+    @height = height
+    @ratio = ratio
+    @border = border
+    @image = draw
+  end
+
+  def encode(barcode_string)
+    x = 1
+    checksum = 0
+    encoded_string = '101'          # Start code
+
+    barcode_string.each_char do |digit|
+      if digit % 2 == 0
+        checksum += digit.to_i * 3
+      else
+        checksum += digit.to_i
+      end
+    end
+
+    # We need to use the first digit to determine the encoding pattern for the
+    # rest of the barcode.  This next line takes the first character of
+    # barcode_string, takes it off of barcode_string, passes it into the FIRST
+    # dictionary, and finally, returns the result into 'first'
+    first = FIRST[barcode_string.slice!(0)]
+
+    # Split up the incoming string into left and right, since they have
+    # different symbologies
+    left_side = barcode_string[0..4]
+    right_side = barcode_string[5..9]
+
+    # Use the 'zip' function to tie the 'left_side' string to the 'first'
+    # string, and then iterate through the result.  'parity' describes whether
+    # to use odd or even encoding, and 'digit' is the digit to be encoded
+    left_side.each_char.zip(first.each_char) do |digit, parity|
+      if parity == 'L'
+        encoded_string += LEFT_ODD[digit]
+      else
+        encoded_string += LEFT_EVEN[digit]
+      end
+    end
+    
+    encoded_string += '01010'        # Middle bars
+
+    # Iterate through the right side, adding to the encoded string
+    right_side.each_char do |digit|
+      encoded_string += RIGHT[digit]
+    end
+    
+    # Calculate the checksum
+    checksum = checksum % 10
+    encoded_string += RIGHT[checksum.to_s]
+    encoded_string += '101'          # End code
+    encoded_string
+  end
+
+  def draw
+    width = (@border * 2) + (@data.size * @ratio)
+
+    image = ChunkyPNG::Image.new(width, @height, ChunkyPNG::Color::WHITE)
+    x = @border
+
+    @data.each_char do |character|
+      if character == '1'
+        (0..@height-1).each do |y|
+          (0...@ratio).each do |r|
+            image[x + r, y] = ChunkyPNG::Color::BLACK
+          end
+        end
+      end
+      x += @ratio
+    end
+    return image
+  end
+
+  def save(file_name)
+    @image.save(file_name)
+  end
 end
