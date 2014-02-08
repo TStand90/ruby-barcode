@@ -19,7 +19,7 @@ class Code39
     '%' => '101001001001', '*' => '100101101101'
   }
 
-  def initialize(data_string, height=150, ratio=2, border=10)
+  def initialize(data_string, height=100, ratio=2, border=10)
     @data = encode(data_string)
     @height = height
     @ratio = ratio
@@ -130,7 +130,7 @@ class Code128
     '|' => 92, '}' => 93, '~' => 94
   }
 
-  def initialize(data_string, height=150, ratio=2, border=10)
+  def initialize(data_string, height=100, ratio=2, border=10)
     @data = encode(data_string)
     @height = height
     @ratio = ratio
@@ -147,10 +147,9 @@ class Code128
       checksum += (MAP_B[s] * x)
       x += 1
     end
-    puts checksum % 103
     encoded_string += CODE128[checksum % 103]
     encoded_string += CODE128[106]    # End code
-    encoded_string
+    return encoded_string
   end
 
   def decode(barcode_string)
@@ -185,7 +184,7 @@ class Code128
   end
 end
 
-class Ean13
+class Ean
   LEFT_ODD = {
     '0' => '0001101', '1' => '0011001', '2' => '0010011', '3' => '0111101',
     '4' => '0100011', '5' => '0110001', '6' => '0101111', '7' => '0111011',
@@ -207,7 +206,7 @@ class Ean13
     '8' => 'LGLGGL', '9' => 'LGLGGL'
   }
 
-  def initialize(data_string, height=150, ratio=2, border=10)
+  def initialize(data_string, height=100, ratio=2, border=10)
     @data = encode(data_string)
     @height = height
     @ratio = ratio
@@ -236,8 +235,8 @@ class Ean13
 
     # Split up the incoming string into left and right, since they have
     # different symbologies
-    left_side = barcode_string[0..4]
-    right_side = barcode_string[5..9]
+    left_side = barcode_string[0..5]
+    right_side = barcode_string[6..10]
 
     # Use the 'zip' function to tie the 'left_side' string to the 'first'
     # string, and then iterate through the result.  'parity' describes whether
@@ -262,6 +261,81 @@ class Ean13
     encoded_string += RIGHT[checksum.to_s]
     encoded_string += '101'          # End code
     encoded_string
+  end
+
+  def decode
+    decoded_string = ''
+    @data.scan(/.{12}/).each do |bit|
+      decoded_string += CODE128.invert[bit]
+    end
+    decoded_string
+  end
+
+  def draw
+    width = (@border * 2) + (@data.size * @ratio)
+
+    image = ChunkyPNG::Image.new(width, @height, ChunkyPNG::Color::WHITE)
+    x = @border
+
+    @data.each_char do |character|
+      if character == '1'
+        (0..@height-1).each do |y|
+          (0...@ratio).each do |r|
+            image[x + r, y] = ChunkyPNG::Color::BLACK
+          end
+        end
+      end
+      x += @ratio
+    end
+    return image
+  end
+
+  def save(file_name)
+    @image.save(file_name)
+  end
+end
+
+class Codabar
+  CODABAR = {
+    '0' => '101010011', '1' => '101011001', '2' => '101001011',
+    '3' => '110010101', '4' => '101101001', '5' => '110101001',
+    '6' => '100101011', '7' => '100101101', '8' => '100110101',
+    '9' => '110100101', '-' => '101001101', '$' => '101100101',
+    ':' => '1101011011', '/' => '1101101011', '.' => '1101101101',
+    '+' => '101100110011', 'A' => '1011001001', 'B' => '1010010011',
+    'C' => '1001001011', 'D' => '1010011001'
+  }
+
+  def initialize(data_string, height=100, ratio=2, border=10)
+    @data = encode(data_string)
+    @height = height
+    @ratio = ratio
+    @border = border
+    @image = draw
+  end
+
+  def encode(barcode_string)
+    # Get the first an last characters, which are the 'start' and 'stop'
+    # characters
+    # slice!(0) puts the first character into 'start', and removes it from
+    # 'barcode_string', and slice!(-1) does the same thing to the last
+    # character and puts it in 'stop'
+    start = CODABAR[barcode_string.slice!(0)]
+    stop = CODABAR[barcode_string.slice!(-1)]
+    encoded_string = start     # Begin the encoding with the start code
+    barcode_string.each_char do |bit|
+      encoded_string += CODABAR[bit]
+    end
+    encoded_string += stop     # Add the end code
+    return encoded_string
+  end
+
+  def decode(barcode_string)
+    decoded_string = ''
+    barcode_string.each_char do |s|
+      decoded_string += CODABAR.invert[s]
+    end
+    decoded_string
   end
 
   def draw
